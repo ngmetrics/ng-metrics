@@ -6,18 +6,25 @@
   }
 }(function() {
 
+  var Digest = function(stack) {
+  };
+
+  Digest.prototype.getHash = function(str) {
+  };
+
   var Metrics = function($provide) {
     var metrics = this;
 
     this.orig = {};
     this.frames = [];
+    this.currentDigests = [];
 
     this.decorateMap = {
       '$rootScope': {
         '$digest': function($orig) {
-          var args = Array.prototype.slice.call(arguments);
-          args.shift();
-          $orig.call(this, args);
+          var s = (new Error()).stack;
+          console.log(s);
+          $orig.call(this);
         }
       }
     };
