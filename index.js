@@ -6,25 +6,44 @@
   }
 }(function() {
 
-  var Digest = function(stack) {
-  };
-
-  Digest.prototype.getHash = function(str) {
+  var Digest = function(id) {
+    this.id     = id;
+    this.cycles = 0;
+    this.avg    = 0;
+    this.max    = 0;
+    this.stack  = '';
   };
 
   var Metrics = function($provide) {
     var metrics = this;
+    window.m = this;
 
     this.orig = {};
-    this.frames = [];
-    this.currentDigests = [];
+    this.digests = {};
 
     this.decorateMap = {
       '$rootScope': {
         '$digest': function($orig) {
-          var s = (new Error()).stack;
-          console.log(s);
+          var digestId = metrics.getHash( (new Error()).stack );
+          var digest = metrics.getDigest(digestId);
+
+          // this refers to $scope
+          this.$$ngMetricsDigestId = digestId;
+
+          var start = Date.now();
+
+          // Call original $digest()
           $orig.call(this);
+
+          // Record max and avg duration for this digest
+          var duration = Date.now() - start;
+
+          if (duration > digest.max) {
+            digest.max = duration;
+          }
+
+          digest.avg = (digest.avg * digest.cycles + duration) / (digest.cycles + 1);
+          digest.cycles++;
         }
       }
     };
@@ -64,8 +83,31 @@
     }
   };
 
+  Metrics.prototype.Digest = Digest;
   Metrics.prototype.enabled = false;
   Metrics.prototype.cookieName = '__ngmguid';
+
+  Metrics.prototype.getDigest = function(id, stack) {
+    var digest = this.digests[id];
+
+    if (! digest) {
+      digest = this.digests[id] = new this.Digest(id);
+      digest.stack = stack;
+    }
+
+    return digest;
+  };
+
+  Metrics.prototype.getHash = function(str) {
+    var hash = 5381,
+        i    = str.length;
+
+    while(i) {
+      hash = (hash * 33) ^ str.charCodeAt(--i);
+    }
+
+    return hash >>> 0;
+  };
 
   Metrics.prototype.init = function() {
   };
