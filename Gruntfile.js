@@ -5,6 +5,8 @@ module.exports = function (grunt) {
     concat: {
       dist: {
         src: [
+            './src/yamd5.js',
+            './src/cookie.js',
             './src/digest.js',
             './src/metrics.js',
             './src/ngmetrics.js'

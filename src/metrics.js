@@ -7,9 +7,9 @@ var Metrics = function($provide) {
 
   this.decorateMap = {
     '$rootScope': {
-      '$digest': function($orig) {
-        var digestId = metrics.getHash( (new Error()).stack );
-        var digest = metrics.getDigest(digestId);
+      '$digest': function($orig, stack) {
+        var digestId = metrics.MD5.hashStr( stack );
+        var digest = metrics.getDigest(digestId, stack);
 
         // this refers to $scope
         this.$$ngMetricsDigestId = digestId;
@@ -46,11 +46,14 @@ var Metrics = function($provide) {
 
             // Replace original function with decorator
             proto[$funcName] = function() {
+              // Store stack trace for hash generation and metrics
+              var stack = (new Error()).stack;
+
               if (metrics.enabled) {
                 var args = Array.prototype.slice.call(arguments);
 
-                // Pass original function to the decorator
-                args.unshift(orig);
+                // Pass original function and stack trace to the decorator
+                args.unshift(orig, stack);
 
                 $funcs[$funcName].apply(this, args);
               }
@@ -67,7 +70,6 @@ var Metrics = function($provide) {
   }
 };
 
-Metrics.prototype.Digest = Digest;
 Metrics.prototype.enabled = false;
 Metrics.prototype.cookieName = '__ngmguid';
 
@@ -80,17 +82,6 @@ Metrics.prototype.getDigest = function(id, stack) {
   }
 
   return digest;
-};
-
-Metrics.prototype.getHash = function(str) {
-  var hash = 5381,
-      i    = str.length;
-
-  while(i) {
-    hash = (hash * 33) ^ str.charCodeAt(--i);
-  }
-
-  return hash >>> 0;
 };
 
 Metrics.prototype.init = function() {
@@ -124,46 +115,6 @@ Metrics.prototype.generateGuid = function() {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 };
 
-Metrics.prototype.docCookies = {
-  getItem: function (sKey) {
-    if (!sKey) { return null; }
-    return decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) || null;
-  },
-  setItem: function (sKey, sValue, vEnd, sPath, sDomain, bSecure) {
-    if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) { return false; }
-    var sExpires = "";
-    if (vEnd) {
-      switch (vEnd.constructor) {
-        case Number:
-          sExpires = vEnd === Infinity ? "; expires=Fri, 31 Dec 9999 23:59:59 GMT" : "; max-age=" + vEnd;
-        break;
-        case String:
-          sExpires = "; expires=" + vEnd;
-        break;
-        case Date:
-          sExpires = "; expires=" + vEnd.toUTCString();
-        break;
-      }
-    }
-    document.cookie = encodeURIComponent(sKey) + "=" + encodeURIComponent(sValue) + sExpires + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "") + (bSecure ? "; secure" : "");
-    return true;
-  },
-  removeItem: function (sKey, sPath, sDomain) {
-    if (!this.hasItem(sKey)) { return false; }
-    document.cookie = encodeURIComponent(sKey) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT" + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "");
-    return true;
-  },
-  hasItem: function (sKey) {
-    if (!sKey) { return false; }
-    return (new RegExp("(?:^|;\\s*)" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=")).test(document.cookie);
-  },
-  keys: function () {
-    var aKeys = document.cookie.replace(/((?:^|\s*;)[^\=]+)(?=;|$)|^\s*|\s*(?:\=[^;]*)?(?:\1|$)/g, "").split(/\s*(?:\=[^;]*)?;\s*/);
-    for (var nLen = aKeys.length, nIdx = 0; nIdx < nLen; nIdx++) { aKeys[nIdx] = decodeURIComponent(aKeys[nIdx]); }
-    return aKeys;
-  }
-};
-
 Metrics.prototype.$get = ['$parse', '$rootScope', '$route', function($parse, $rootScope, $route) {
   this.$parse = $parse;
   this.$rootScope = $rootScope;
@@ -173,5 +124,9 @@ Metrics.prototype.$get = ['$parse', '$rootScope', '$route', function($parse, $ro
 
   return this;
 }];
+
+Metrics.prototype.docCookies = docCookies;
+Metrics.prototype.Digest = Digest;
+Metrics.prototype.MD5 = MD5;
 
 // vim: shiftwidth=2
