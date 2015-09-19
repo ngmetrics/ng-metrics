@@ -72,6 +72,7 @@ var Metrics = function($provide) {
 
 Metrics.prototype.enabled = false;
 Metrics.prototype.cookieName = '__ngmguid';
+Metrics.prototype.metricsEndpoint = 'http://app.ngmetrics.com/data/log';
 
 Metrics.prototype.getDigest = function(id, stack) {
   var digest = this.digests[id];
@@ -84,7 +85,10 @@ Metrics.prototype.getDigest = function(id, stack) {
   return digest;
 };
 
-Metrics.prototype.init = function() {
+Metrics.prototype.init = function(options) {
+  if (options && options.metricsEndpoint) {
+    this.metricsEndpoint = options.metricsEndpoint;
+  }
 };
 
 Metrics.prototype.enable = function() {
