@@ -509,7 +509,8 @@ var Metrics = function($provide) {
 
 Metrics.prototype.enabled = false;
 Metrics.prototype.cookieName = '__ngmguid';
-Metrics.prototype.metricsEndpoint = 'http://app.ngmetrics.com/data/log';
+Metrics.prototype.metricsServer = 'app.ngmetrics.com';
+Metrics.prototype.appId = null;
 
 Metrics.prototype.getDigest = function(id, stack) {
   var digest = this.digests[id];
@@ -522,13 +523,47 @@ Metrics.prototype.getDigest = function(id, stack) {
   return digest;
 };
 
-Metrics.prototype.init = function(options) {
-  if (options && options.metricsEndpoint) {
-    this.metricsEndpoint = options.metricsEndpoint;
+Metrics.prototype.getEndpointUrl = function() {
+  return 'http://' + this.metricsServer + '/data/log?appId=' + this.appId;
+};
+
+Metrics.prototype.flushCollectedMetrics = function() {
+  var data = {
+    digests: []
+  };
+
+  Object.keys(this.digests).forEach(function(key) {
+    data.digests.push( this.digests[key] );
+  }.bind(this));
+
+  this.digests = {};
+
+  var dataStr = JSON.stringify(data);
+  var xhr = this.getXhr();
+
+  xhr.open('POST', this.getEndpointUrl(), true);
+  xhr.setRequestHeader('Content-type', 'application/json');
+  xhr.setRequestHeader('Content-lenght', dataStr.length);
+  xhr.send(dataStr);
+};
+
+Metrics.prototype.getXhr = function() {
+  if (! this.xhr) {
+    this.xhr = new XMLHttpRequest();
   }
+
+  return this.xhr;
+};
+
+Metrics.prototype.init = function(options) {
 };
 
 Metrics.prototype.enable = function() {
+  if (this.appId == null) {
+    console.warn('ngMetrics requires appId to be set before enabling');
+    return;
+  }
+
   this.enabled = true;
 };
 
@@ -560,9 +595,6 @@ Metrics.prototype.$get = ['$parse', '$rootScope', '$route', function($parse, $ro
   this.$parse = $parse;
   this.$rootScope = $rootScope;
   this.$route = $route;
-
-  this.init();
-
   return this;
 }];
 

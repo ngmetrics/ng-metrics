@@ -31,5 +31,6 @@ angular.module('todomvc', ['ngRoute', 'ngMetrics'])
 			});
 	})
     .run(['ngMetrics', function(ngMetrics) {
+        ngMetrics.appId = 'XYZ';
         ngMetrics.enable();
     }]);
