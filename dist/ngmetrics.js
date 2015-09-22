@@ -508,6 +508,7 @@ var Metrics = function($provide) {
 };
 
 Metrics.prototype.enabled = false;
+Metrics.prototype.flushInterval = null;
 Metrics.prototype.cookieName = '__ngmguid';
 Metrics.prototype.metricsServer = 'app.ngmetrics.com';
 Metrics.prototype.appId = null;
@@ -524,10 +525,14 @@ Metrics.prototype.getDigest = function(id, stack) {
 };
 
 Metrics.prototype.getEndpointUrl = function() {
-  return 'http://' + this.metricsServer + '/data/log?appId=' + this.appId;
+  return 'http://' + this.metricsServer + '/api/v1/data/log?appId=' + this.appId + '&__c=' + Date.now();
 };
 
 Metrics.prototype.flushCollectedMetrics = function() {
+  if (Object.keys(this.digests).length === 0) {
+    return;
+  }
+
   var data = {
     digests: []
   };
@@ -543,7 +548,6 @@ Metrics.prototype.flushCollectedMetrics = function() {
 
   xhr.open('POST', this.getEndpointUrl(), true);
   xhr.setRequestHeader('Content-type', 'application/json');
-  xhr.setRequestHeader('Content-lenght', dataStr.length);
   xhr.send(dataStr);
 };
 
@@ -564,10 +568,17 @@ Metrics.prototype.enable = function() {
     return;
   }
 
+  this.flushInterval = setInterval(this.flushCollectedMetrics.bind(this), 60000);
+
   this.enabled = true;
 };
 
 Metrics.prototype.disable = function() {
+  if (this.flushInterval) {
+    clearInterval(this.flushInterval);
+    this.flushInterval = null;
+  }
+
   this.enabled = false;
 };
 
