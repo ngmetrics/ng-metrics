@@ -4,6 +4,7 @@ var Metrics = function($provide) {
 
   this.orig = {};
   this.digests = {};
+  this.routeStats = {};
 
   this.decorateMap = {
     '$rootScope': {
