@@ -29,6 +29,16 @@ var Metrics = function($provide) {
 
         digest.avg = (digest.avg * digest.cycles + duration) / (digest.cycles + 1);
         digest.cycles++;
+
+        var routeStat = metrics.getCurrentRouteStat();
+
+        routeStat.digests++;
+
+        if (duration > routeStat.maxDigest) {
+          routeStat.maxDigest = duration;
+        }
+
+        routeStat.totalDigest += duration;
       }
     }
   };
@@ -86,6 +96,24 @@ Metrics.prototype.getDigest = function(id, stack) {
   }
 
   return digest;
+};
+
+Metrics.prototype.getCurrentRouteStat = function() {
+  if (!this.$route.current || !this.$route.current.$$route) {
+    return;
+  }
+
+  var currentPath = this.$route.current.$$route.originalPath;
+
+  if (! this.routeStats[currentPath]) {
+    this.routeStats[currentPath] = {
+      digests: 0,
+      maxDigest: 0,
+      totalDigest: 0
+    };
+  }
+
+  return this.routeStats[currentPath];
 };
 
 Metrics.prototype.getEndpointUrl = function() {
