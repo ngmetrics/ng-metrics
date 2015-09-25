@@ -117,7 +117,7 @@ Metrics.prototype.getCurrentRouteStat = function() {
 };
 
 Metrics.prototype.getEndpointUrl = function() {
-  return 'http://' + this.metricsServer + '/api/v1/data/log?appId=' + this.appId + '&__c=' + Date.now();
+  return 'http://' + this.metricsServer + '/data/log?appId=' + this.appId + '&__c=' + Date.now();
 };
 
 Metrics.prototype.flushCollectedMetrics = function() {
@@ -126,7 +126,8 @@ Metrics.prototype.flushCollectedMetrics = function() {
   }
 
   var data = {
-    digests: []
+    digests: [],
+    routes: []
   };
 
   Object.keys(this.digests).forEach(function(key) {
@@ -134,6 +135,12 @@ Metrics.prototype.flushCollectedMetrics = function() {
   }.bind(this));
 
   this.digests = {};
+
+  Object.keys(this.routeStats).forEach(function(key) {
+    data.routes.push( this.routeStats[key] );
+  }.bind(this));
+
+  this.routeStats = {};
 
   var dataStr = JSON.stringify(data);
   var xhr = this.getXhr();
