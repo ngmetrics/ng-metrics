@@ -126,6 +126,7 @@ Metrics.prototype.flushCollectedMetrics = function() {
   }
 
   var data = {
+    guid: this.getGuid(),
     digests: [],
     routes: []
   };
