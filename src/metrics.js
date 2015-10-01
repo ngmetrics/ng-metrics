@@ -30,6 +30,9 @@ var Metrics = function($provide) {
         digest.avg = (digest.avg * digest.cycles + duration) / (digest.cycles + 1);
         digest.cycles++;
 
+        // Update responsiveness metrics
+        metrics.rsMetrics.addDigestTime(duration);
+
         var routeStat = metrics.getCurrentRouteStat();
 
         routeStat.digests++;
@@ -130,7 +133,7 @@ Metrics.prototype.flushCollectedMetrics = function() {
     guid: this.getGuid(),
     digests: [],
     routes: [],
-    responsivness: []
+    responsivness: this.rsMetrics.flush()
   };
 
   Object.keys(this.digests).forEach(function(key) {
@@ -171,7 +174,7 @@ Metrics.prototype.enable = function() {
   }
 
   this.flushInterval = setInterval(this.flushCollectedMetrics.bind(this), 60000);
-
+  this.rsMetrics.attachEventListeners();
   this.enabled = true;
 };
 
@@ -181,6 +184,7 @@ Metrics.prototype.disable = function() {
     this.flushInterval = null;
   }
 
+  this.rsMetrics.detachEventListeners();
   this.enabled = false;
 };
 
@@ -205,9 +209,14 @@ Metrics.prototype.generateGuid = function() {
 };
 
 Metrics.prototype.$get = ['$parse', '$rootScope', '$route', function($parse, $rootScope, $route) {
+  // angular stuff
   this.$parse = $parse;
   this.$rootScope = $rootScope;
   this.$route = $route;
+
+  // metrics stuff
+  this.rsMetrics = new RS($route);
+
   return this;
 }];
 
