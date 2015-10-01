@@ -8,6 +8,7 @@ module.exports = function (grunt) {
             './src/yamd5.js',
             './src/cookie.js',
             './src/digest.js',
+            './src/rs.js',
             './src/metrics.js',
             './src/ngmetrics.js'
         ],

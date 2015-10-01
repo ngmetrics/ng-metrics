@@ -43,6 +43,7 @@ var Metrics = function($provide) {
     }
   };
 
+  // Bunch of code to patch Angular.js with metrics gathering hooks
   for (var element in this.decorateMap) {
     if (this.decorateMap.hasOwnProperty(element)) {
       $provide.decorator(element, ['$delegate', function($delegate) {
@@ -128,7 +129,8 @@ Metrics.prototype.flushCollectedMetrics = function() {
   var data = {
     guid: this.getGuid(),
     digests: [],
-    routes: []
+    routes: [],
+    responsivness: []
   };
 
   Object.keys(this.digests).forEach(function(key) {
