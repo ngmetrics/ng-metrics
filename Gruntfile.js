@@ -1,3 +1,4 @@
+/* eslint-env node */
 module.exports = function (grunt) {
   require('load-grunt-tasks')(grunt);
 
@@ -5,17 +6,18 @@ module.exports = function (grunt) {
     concat: {
       dist: {
         src: [
-            './src/yamd5.js',
-            './src/cookie.js',
-            './src/digest.js',
-            './src/rs.js',
-            './src/metrics.js',
-            './src/ngmetrics.js'
+          './src/yamd5.js',
+          './src/cookie.js',
+          './src/digest.js',
+          './src/route.js',
+          './src/rs.js',
+          './src/metrics.js',
+          './src/ngmetrics.js'
         ],
         dest: 'dist/ngmetrics.js',
         options: {
-          banner: ";(function(global){ \n 'use strict';",
-          footer: "}(this));"
+          banner: ';(function(global){ \n "use strict";',
+          footer: '}(this));'
         }
       }
     },
@@ -35,5 +37,6 @@ module.exports = function (grunt) {
     'concat:dist',
     'watch'
   ]);
-}
+};
+
 // vim: shiftwidth=2

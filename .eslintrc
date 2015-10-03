@@ -1,7 +1,33 @@
-env:
-    browser: true
-    amd: true
-    node: true
-
-globals:
-    angular: true
+{
+    "rules": {
+        "indent": [
+            2,
+            2
+        ],
+        "quotes": [
+            2,
+            "single"
+        ],
+        "linebreak-style": [
+            2,
+            "unix"
+        ],
+        "semi": [
+            2,
+            "always"
+        ]
+    },
+    "env": {
+        "browser": true
+    },
+    "globals": {
+        "angular"    : {},
+        "Metrics"    : {},
+        "RS"         : {},
+        "docCookies" : {},
+        "Digest"     : {},
+        "Route"      : {},
+        "MD5"        : {}
+    },
+    "extends": "eslint:recommended"
+}

@@ -1,5 +1,6 @@
 ;(function(global){ 
- 'use strict';/*******************************************************************************
+ "use strict";/* eslint indent:[2,4] */
+/*******************************************************************************
 
 YaMD5 - Yet another MD5 hasher.
 home: https://github.com/gorhill/yamd5.js
@@ -364,7 +365,7 @@ THE SOFTWARE.
         }
         md5cycle(this._state, buf32);
 
-        return !!raw ? this._state : hex(this._state);
+        return raw ? this._state : hex(this._state);
     };
 
     // This permanent instance is to use for one-call hashing
@@ -384,48 +385,52 @@ THE SOFTWARE.
             .end(raw);
     };
 
+/* eslint-disable no-unused-vars */
 var docCookies = {
+/* eslint-enable */
   getItem: function (sKey) {
     if (!sKey) { return null; }
-    return decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) || null;
+    return decodeURIComponent(document.cookie.replace(new RegExp('(?:(?:^|.*;)\\s*' + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, '\\$&') + '\\s*\\=\\s*([^;]*).*$)|^.*$'), '$1')) || null;
   },
   setItem: function (sKey, sValue, vEnd, sPath, sDomain, bSecure) {
     if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) { return false; }
-    var sExpires = "";
+    var sExpires = '';
     if (vEnd) {
       switch (vEnd.constructor) {
-        case Number:
-          sExpires = vEnd === Infinity ? "; expires=Fri, 31 Dec 9999 23:59:59 GMT" : "; max-age=" + vEnd;
+      case Number:
+        sExpires = vEnd === Infinity ? '; expires=Fri, 31 Dec 9999 23:59:59 GMT' : '; max-age=' + vEnd;
         break;
-        case String:
-          sExpires = "; expires=" + vEnd;
+      case String:
+        sExpires = '; expires=' + vEnd;
         break;
-        case Date:
-          sExpires = "; expires=" + vEnd.toUTCString();
+      case Date:
+        sExpires = '; expires=' + vEnd.toUTCString();
         break;
       }
     }
-    document.cookie = encodeURIComponent(sKey) + "=" + encodeURIComponent(sValue) + sExpires + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "") + (bSecure ? "; secure" : "");
+    document.cookie = encodeURIComponent(sKey) + '=' + encodeURIComponent(sValue) + sExpires + (sDomain ? '; domain=' + sDomain : '') + (sPath ? '; path=' + sPath : '') + (bSecure ? '; secure' : '');
     return true;
   },
   removeItem: function (sKey, sPath, sDomain) {
     if (!this.hasItem(sKey)) { return false; }
-    document.cookie = encodeURIComponent(sKey) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT" + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "");
+    document.cookie = encodeURIComponent(sKey) + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT' + (sDomain ? '; domain=' + sDomain : '') + (sPath ? '; path=' + sPath : '');
     return true;
   },
   hasItem: function (sKey) {
     if (!sKey) { return false; }
-    return (new RegExp("(?:^|;\\s*)" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=")).test(document.cookie);
+    return (new RegExp('(?:^|;\\s*)' + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, '\\$&') + '\\s*\\=')).test(document.cookie);
   },
   keys: function () {
-    var aKeys = document.cookie.replace(/((?:^|\s*;)[^\=]+)(?=;|$)|^\s*|\s*(?:\=[^;]*)?(?:\1|$)/g, "").split(/\s*(?:\=[^;]*)?;\s*/);
+    var aKeys = document.cookie.replace(/((?:^|\s*;)[^\=]+)(?=;|$)|^\s*|\s*(?:\=[^;]*)?(?:\1|$)/g, '').split(/\s*(?:\=[^;]*)?;\s*/);
     for (var nLen = aKeys.length, nIdx = 0; nIdx < nLen; nIdx++) { aKeys[nIdx] = decodeURIComponent(aKeys[nIdx]); }
     return aKeys;
   }
 };
 // vim: shiftwidth=2
 
+/* eslint-disable no-unused-vars */
 var Digest = function(id) {
+/* eslint-enable */
   this.id     = id;
   this.cycles = 0;
   this.avg    = 0;
@@ -435,21 +440,69 @@ var Digest = function(id) {
 
 // vim: shiftwidth=2
 
+/* eslint no-empty:0 */
+
+var Route = function($injector, pathGetter) {
+  this.$injector = $injector;
+
+  if (pathGetter) {
+    this.getCurrentPath = pathGetter;
+  }
+  else {
+    this.detectMethod();
+  }
+};
+
+Route.prototype.getCurrentPath = function() {
+  return [
+    window.location.pathname,
+    window.location.search,
+    window.location.hash
+  ].join('');
+};
+
+Route.prototype.detectMethod = function() {
+  var found = false;
+
+  // try ui.router second
+  try {
+    var $state = this.$injector.get('$state');
+
+    this.getCurrentPath = function() {
+      return $state.$current && $state.$current.url.source;
+    };
+
+    found = true;
+  } catch (e) {}
+
+  if (found) { return; }
+
+  // try ngRouter first
+  try {
+    var $route = this.$injector.get('$route');
+
+    this.getCurrentPath = function() {
+      return $route.current && $route.current.$$route.originalPath;
+    };
+  } catch (e) {}
+};
+
+
+// vim: shiftwidth=2
+
 // Responsiveness metrics tracker
 
-var RS = function($route, events) {
-    var rs = this;
+var RS = function(route, events) {
+  this.route = route;
 
-    this.$route = $route;
+  if (events) {
+    this.events = events;
+  }
 
-    if (events) {
-        this.events = events;
-    }
+  // Make sure event handler called with right context
+  this.handleEvent = this.handleEvent.bind(this);
 
-    // Make sure event handler called with right context
-    this.handleEvent = this.handleEvent.bind(this);
-
-    this.records = [];
+  this.records = [];
 };
 
 RS.prototype.records         = null;
@@ -460,129 +513,154 @@ RS.prototype.currentTimeout  = 0;
 RS.prototype.currentEvent    = {};
 RS.prototype.currentPath     = '';
 RS.prototype.eventTimestamp  = 0;
+RS.prototype.digests         = [];
 RS.prototype.digestTimeTotal = 0;
 
 RS.prototype.attachEventListeners = function() {
-    var rs = this;
+  var rs = this;
 
-    this.events.forEach(function(eventName) {
-        document.addEventListener(eventName, rs.handleEvent, true);
-    });
+  this.events.forEach(function(eventName) {
+    document.addEventListener(eventName, rs.handleEvent, true);
+  });
 };
 
 RS.prototype.detachEventListeners = function() {
-    var rs = this;
+  var rs = this;
 
-    this.events.forEach(function(eventName) {
-        document.removeEventListener(eventName, rs.handleEvent);
-    });
+  this.events.forEach(function(eventName) {
+    document.removeEventListener(eventName, rs.handleEvent);
+  });
 };
 
 RS.prototype.handleEvent = function(e) {
-    if (this.currentTimeout) {
-        clearTimeout(this.currentTimeout);
-    }
+  if (! this.settled) {
+    this.settle();
+  }
 
-    if (! this.settled) {
-        this.settle();
-    }
+  // Init stats
+  this.currentEvent    = e;
+  this.settled         = false;
+  this.eventTimestamp  = Date.now();
+  this.digests         = [];
+  this.digestTimeTotal = 0;
+  this.currentPath     = this.route.getCurrentPath();
 
-    // Init stats
-    this.currentTimeout  = setTimeout(this.settle.bind(this), this.cutoffDelay);
-    this.currentEvent    = e;
-    this.settled         = false;
-    this.eventTimestamp  = Date.now();
-    this.digestTimeTotal = 0;
-
-    // Save current route
-    if (this.$route.current && !this.$route.current.$$route) {
-        this.currentPath = this.$route.current.$$route.originalPath;
-    }
+  this.scheduleSettle();
 };
 
-RS.prototype.addDigestTime = function(duration) {
-    this.digestTimeTotal += duration;
+RS.prototype.scheduleSettle = function() {
+  this.cancelScheduledSettle();
+
+  if (this.settled) {
+    return;
+  }
+
+  this.currentTimeout  = setTimeout(this.settle.bind(this), this.cutoffDelay);
+};
+
+// this is necessary to deal with super long digests
+RS.prototype.cancelScheduledSettle = function() {
+  clearTimeout(this.currentTimeout);
+  this.currentTimeout = null;
+};
+
+RS.prototype.addDigestTime = function(duration, id) {
+  if (this.digests.indexOf(id) === -1) {
+    this.digests.push(id);
+  }
+
+  this.digestTimeTotal += duration;
+  this.scheduleSettle();
 };
 
 RS.prototype.settle = function() {
-    this.settled = true;
+  this.settled = true;
 
-    // We do not need to track events which did not incur digest time
-    if (this.digestTimeTotal === 0) {
-        return;
-    }
+  // We do not need to track events which did not incur digest time
+  if (this.digestTimeTotal === 0) {
+    return;
+  }
 
-    var record = {
-        path            : this.currentPath,
-        digestTimeTotal : this.digestTimeTotal,
-        eventName       : this.currentEvent.type,
-        htmlElement     : this.getPath(this.currentEvent.target)
-    };
+  var record = {
+    path            : this.currentPath,
+    digests         : this.digests,
+    digestTimeTotal : this.digestTimeTotal,
+    eventName       : this.currentEvent.type,
+    htmlElement     : this.getPath(this.currentEvent.target)
+  };
 
-    this.records.push(record);
+  this.records.push(record);
 };
 
 RS.prototype.flush = function() {
-    var flushedRecords = this.records;
+  var flushedRecords = this.records;
 
-    this.records = [];
+  this.records = [];
 
-    return flushedRecords;
+  return flushedRecords;
 };
 
 RS.prototype.previousElementSibling = function(element) {
-    if (element.previousElementSibling !== 'undefined') {
-        return element.previousElementSibling;
+  if (element.previousElementSibling !== 'undefined') {
+    return element.previousElementSibling;
+  }
+  else {
+    // Loop through ignoring anything not an element
+    element = element.previousSibling;
+
+    while (element) {
+      if (element.nodeType === 1) {
+        return element;
+      }
+
+      element = element.previousSibling;
     }
-    else {
-        // Loop through ignoring anything not an element
-        while (element = element.previousSibling) {
-            if (element.nodeType === 1) {
-                return element;
-            }
-        }
-    }
+  }
 };
 
 RS.prototype.getPath = function(element) {
-    if (! (element instanceof HTMLElement)) {
-        return false;
+  if (! (element instanceof HTMLElement)) {
+    return false;
+  }
+
+  var path = [];
+
+  while (element && element.nodeType === Node.ELEMENT_NODE) {
+    var selector = element.nodeName;
+
+    if (element.id) {
+      selector += ('#' + element.id);
+    }
+    else {
+      // Walk backwards until there is no previous sibling
+      var sibling = element;
+
+      // Will hold nodeName to join for adjacent selection
+      var siblingSelectors = [];
+
+      while (sibling !== null && sibling.nodeType === Node.ELEMENT_NODE) {
+        siblingSelectors.unshift(sibling.nodeName);
+        sibling = this.previousElementSibling(sibling);
+      }
+
+      // :first-child does not apply to HTML
+      if (siblingSelectors[0] !== 'HTML') {
+        siblingSelectors[0] = siblingSelectors[0] + ':first-child';
+      }
+
+      selector = siblingSelectors.join(' + ');
     }
 
-    var path = [];
+    path.unshift(selector);
+    element = element.parentNode;
+  }
 
-    while (element && element.nodeType === Node.ELEMENT_NODE) {
-        var selector = element.nodeName;
-
-        if (element.id) {
-            selector += ('#' + element.id);
-        }
-        else {
-            // Walk backwards until there is no previous sibling
-            var sibling = element;
-
-            // Will hold nodeName to join for adjacent selection
-            var siblingSelectors = [];
-
-            while (sibling !== null && sibling.nodeType === Node.ELEMENT_NODE) {
-                siblingSelectors.unshift(sibling.nodeName);
-                sibling = this.previousElementSibling(sibling);
-            }
-
-            // :first-child does not apply to HTML
-            if (siblingSelectors[0] !== 'HTML') {
-                siblingSelectors[0] = siblingSelectors[0] + ':first-child';
-            }
-
-            selector = siblingSelectors.join(' + ');
-        }
-
-        path.unshift(selector);
-        element = element.parentNode;
-    }
-
-    return path.join(' > ');
+  return path.join(' > ');
 };
+
+// vim: shiftwidth=2
+
+/* eslint no-console:0 */
 
 var Metrics = function($provide) {
   var metrics = this;
@@ -601,6 +679,9 @@ var Metrics = function($provide) {
         // this refers to $scope
         this.$$ngMetricsDigestId = digestId;
 
+        // To prevent rs metrics settle before long digest finishes
+        metrics.rsMetrics.cancelScheduledSettle();
+
         var start = Date.now();
 
         // Call original $digest()
@@ -617,11 +698,13 @@ var Metrics = function($provide) {
         digest.cycles++;
 
         // Update responsiveness metrics
-        metrics.rsMetrics.addDigestTime(duration);
+        metrics.rsMetrics.addDigestTime(duration, digestId);
 
         var routeStat = metrics.getCurrentRouteStat();
 
-        routeStat.digests++;
+        if (routeStat.digests.indexOf(digestId) === -1) {
+          routeStat.digests.push(digestId);
+        }
 
         if (duration > routeStat.maxDigest) {
           routeStat.maxDigest = duration;
@@ -689,17 +772,14 @@ Metrics.prototype.getDigest = function(id, stack) {
 };
 
 Metrics.prototype.getCurrentRouteStat = function() {
-  if (!this.$route.current || !this.$route.current.$$route) {
-    return;
-  }
-
-  var currentPath = this.$route.current.$$route.originalPath;
+  var currentPath = this.route.getCurrentPath() || '';
 
   if (! this.routeStats[currentPath]) {
     this.routeStats[currentPath] = {
-      digests: 0,
-      maxDigest: 0,
-      totalDigest: 0
+      path        : currentPath,
+      digests     : [],
+      maxDigest   : 0,
+      totalDigest : 0
     };
   }
 
@@ -750,7 +830,7 @@ Metrics.prototype.getXhr = function() {
   return this.xhr;
 };
 
-Metrics.prototype.init = function(options) {
+Metrics.prototype.init = function(/*options*/) {
 };
 
 Metrics.prototype.enable = function() {
@@ -794,17 +874,21 @@ Metrics.prototype.generateGuid = function() {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 };
 
-Metrics.prototype.$get = ['$parse', '$rootScope', '$route', function($parse, $rootScope, $route) {
-  // angular stuff
-  this.$parse = $parse;
-  this.$rootScope = $rootScope;
-  this.$route = $route;
+Metrics.prototype.$get = [
+  '$parse', '$injector', '$rootScope',
+  function($parse, $injector, $rootScope) {
+    // angular stuff
+    this.$parse = $parse;
+    this.$injector = $injector;
+    this.$rootScope = $rootScope;
 
-  // metrics stuff
-  this.rsMetrics = new RS($route);
+    // metrics stuff
+    this.route = new Route(this.$injector);
+    this.rsMetrics = new RS(this.route);
 
-  return this;
-}];
+    return this;
+  }
+];
 
 Metrics.prototype.docCookies = docCookies;
 Metrics.prototype.Digest = Digest;

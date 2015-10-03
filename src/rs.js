@@ -1,9 +1,7 @@
 // Responsiveness metrics tracker
 
-var RS = function($route, events) {
-  var rs = this;
-
-  this.$route = $route;
+var RS = function(route, events) {
+  this.route = route;
 
   if (events) {
     this.events = events;
@@ -22,7 +20,9 @@ RS.prototype.settled         = true;
 RS.prototype.currentTimeout  = 0;
 RS.prototype.currentEvent    = {};
 RS.prototype.currentPath     = '';
+RS.prototype.currentUrl      = '',
 RS.prototype.eventTimestamp  = 0;
+RS.prototype.digests         = [];
 RS.prototype.digestTimeTotal = 0;
 
 RS.prototype.attachEventListeners = function() {
@@ -42,29 +42,45 @@ RS.prototype.detachEventListeners = function() {
 };
 
 RS.prototype.handleEvent = function(e) {
-  if (this.currentTimeout) {
-    clearTimeout(this.currentTimeout);
-  }
-
   if (! this.settled) {
     this.settle();
   }
 
   // Init stats
-  this.currentTimeout  = setTimeout(this.settle.bind(this), this.cutoffDelay);
   this.currentEvent    = e;
   this.settled         = false;
   this.eventTimestamp  = Date.now();
+  this.digests         = [];
   this.digestTimeTotal = 0;
+  this.currentPath     = this.route.getCurrentPath();
+  this.currentUrl      = this.route.getCurrentUrl();
 
-  // Save current route
-  if (this.$route.current && !this.$route.current.$$route) {
-    this.currentPath = this.$route.current.$$route.originalPath;
-  }
+  this.scheduleSettle();
 };
 
-RS.prototype.addDigestTime = function(duration) {
+RS.prototype.scheduleSettle = function() {
+  this.cancelScheduledSettle();
+
+  if (this.settled) {
+    return;
+  }
+
+  this.currentTimeout  = setTimeout(this.settle.bind(this), this.cutoffDelay);
+};
+
+// this is necessary to deal with super long digests
+RS.prototype.cancelScheduledSettle = function() {
+  clearTimeout(this.currentTimeout);
+  this.currentTimeout = null;
+};
+
+RS.prototype.addDigestTime = function(duration, id) {
+  if (this.digests.indexOf(id) === -1) {
+    this.digests.push(id);
+  }
+
   this.digestTimeTotal += duration;
+  this.scheduleSettle();
 };
 
 RS.prototype.settle = function() {
@@ -77,6 +93,8 @@ RS.prototype.settle = function() {
 
   var record = {
     path            : this.currentPath,
+    url             : this.currentUrl,
+    digests         : this.digests,
     digestTimeTotal : this.digestTimeTotal,
     eventName       : this.currentEvent.type,
     htmlElement     : this.getPath(this.currentEvent.target)
@@ -99,10 +117,14 @@ RS.prototype.previousElementSibling = function(element) {
   }
   else {
     // Loop through ignoring anything not an element
-    while (element = element.previousSibling) {
+    element = element.previousSibling;
+
+    while (element) {
       if (element.nodeType === 1) {
         return element;
       }
+
+      element = element.previousSibling;
     }
   }
 };

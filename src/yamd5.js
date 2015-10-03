@@ -1,3 +1,4 @@
+/* eslint indent:[2,4] */
 /*******************************************************************************
 
 YaMD5 - Yet another MD5 hasher.
@@ -363,7 +364,7 @@ THE SOFTWARE.
         }
         md5cycle(this._state, buf32);
 
-        return !!raw ? this._state : hex(this._state);
+        return raw ? this._state : hex(this._state);
     };
 
     // This permanent instance is to use for one-call hashing

@@ -1,3 +1,5 @@
+/* eslint no-console:0 */
+
 var Metrics = function($provide) {
   var metrics = this;
   window.m = this;
@@ -15,6 +17,9 @@ var Metrics = function($provide) {
         // this refers to $scope
         this.$$ngMetricsDigestId = digestId;
 
+        // To prevent rs metrics settle before long digest finishes
+        metrics.rsMetrics.cancelScheduledSettle();
+
         var start = Date.now();
 
         // Call original $digest()
@@ -31,11 +36,13 @@ var Metrics = function($provide) {
         digest.cycles++;
 
         // Update responsiveness metrics
-        metrics.rsMetrics.addDigestTime(duration);
+        metrics.rsMetrics.addDigestTime(duration, digestId);
 
         var routeStat = metrics.getCurrentRouteStat();
 
-        routeStat.digests++;
+        if (routeStat.digests.indexOf(digestId) === -1) {
+          routeStat.digests.push(digestId);
+        }
 
         if (duration > routeStat.maxDigest) {
           routeStat.maxDigest = duration;
@@ -103,17 +110,15 @@ Metrics.prototype.getDigest = function(id, stack) {
 };
 
 Metrics.prototype.getCurrentRouteStat = function() {
-  if (!this.$route.current || !this.$route.current.$$route) {
-    return;
-  }
-
-  var currentPath = this.$route.current.$$route.originalPath;
+  var currentPath = this.route.getCurrentPath() || '';
 
   if (! this.routeStats[currentPath]) {
     this.routeStats[currentPath] = {
-      digests: 0,
-      maxDigest: 0,
-      totalDigest: 0
+      path        : currentPath,
+      url         : this.route.getCurrentUrl(),
+      digests     : [],
+      maxDigest   : 0,
+      totalDigest : 0
     };
   }
 
@@ -164,7 +169,7 @@ Metrics.prototype.getXhr = function() {
   return this.xhr;
 };
 
-Metrics.prototype.init = function(options) {
+Metrics.prototype.init = function(/*options*/) {
 };
 
 Metrics.prototype.enable = function() {
@@ -208,17 +213,21 @@ Metrics.prototype.generateGuid = function() {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 };
 
-Metrics.prototype.$get = ['$parse', '$rootScope', '$route', function($parse, $rootScope, $route) {
-  // angular stuff
-  this.$parse = $parse;
-  this.$rootScope = $rootScope;
-  this.$route = $route;
+Metrics.prototype.$get = [
+  '$parse', '$injector', '$rootScope',
+  function($parse, $injector, $rootScope) {
+    // angular stuff
+    this.$parse = $parse;
+    this.$injector = $injector;
+    this.$rootScope = $rootScope;
 
-  // metrics stuff
-  this.rsMetrics = new RS($route);
+    // metrics stuff
+    this.route = new Route(this.$injector);
+    this.rsMetrics = new RS(this.route);
 
-  return this;
-}];
+    return this;
+  }
+];
 
 Metrics.prototype.docCookies = docCookies;
 Metrics.prototype.Digest = Digest;
