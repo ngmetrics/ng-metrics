@@ -46,6 +46,7 @@ var Metrics = function($provide) {
 
         if (duration > routeStat.maxDigest) {
           routeStat.maxDigest = duration;
+          routeStat.maxDigestId = digestId;
         }
 
         routeStat.totalDigest += duration;
@@ -118,6 +119,7 @@ Metrics.prototype.getCurrentRouteStat = function() {
       url         : this.route.getCurrentUrl(),
       digests     : [],
       maxDigest   : 0,
+      maxDigestId : '',
       totalDigest : 0
     };
   }
@@ -135,10 +137,10 @@ Metrics.prototype.flushCollectedMetrics = function() {
   }
 
   var data = {
-    guid: this.getGuid(),
-    digests: [],
-    routes: [],
-    responsivness: this.rsMetrics.flush()
+    guid    : this.getGuid(),
+    digests : [],
+    routes  : [],
+    rs      : this.rsMetrics.flush()
   };
 
   Object.keys(this.digests).forEach(function(key) {

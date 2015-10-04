@@ -453,7 +453,7 @@ var Route = function($injector, pathGetter) {
   }
 };
 
-Route.prototype.getCurrentPath = function() {
+Route.prototype.getCurrentUrl = Route.prototype.getCurrentPath = function() {
   return [
     window.location.pathname,
     window.location.search,
@@ -506,15 +506,16 @@ var RS = function(route, events) {
 };
 
 RS.prototype.records         = null;
-RS.prototype.cutoffDelay     = 100;
+RS.prototype.cutoffDelay     = 1000;
 RS.prototype.events          = ['click', 'keydown', 'submit', 'mousein'];
 RS.prototype.settled         = true;
 RS.prototype.currentTimeout  = 0;
 RS.prototype.currentEvent    = {};
 RS.prototype.currentPath     = '';
+RS.prototype.currentUrl      = '',
 RS.prototype.eventTimestamp  = 0;
 RS.prototype.digests         = [];
-RS.prototype.digestTimeTotal = 0;
+RS.prototype.totalDigest     = 0;
 
 RS.prototype.attachEventListeners = function() {
   var rs = this;
@@ -542,8 +543,9 @@ RS.prototype.handleEvent = function(e) {
   this.settled         = false;
   this.eventTimestamp  = Date.now();
   this.digests         = [];
-  this.digestTimeTotal = 0;
+  this.totalDigest     = 0;
   this.currentPath     = this.route.getCurrentPath();
+  this.currentUrl      = this.route.getCurrentUrl();
 
   this.scheduleSettle();
 };
@@ -569,7 +571,7 @@ RS.prototype.addDigestTime = function(duration, id) {
     this.digests.push(id);
   }
 
-  this.digestTimeTotal += duration;
+  this.totalDigest += duration;
   this.scheduleSettle();
 };
 
@@ -577,14 +579,15 @@ RS.prototype.settle = function() {
   this.settled = true;
 
   // We do not need to track events which did not incur digest time
-  if (this.digestTimeTotal === 0) {
+  if (this.totalDigest === 0) {
     return;
   }
 
   var record = {
     path            : this.currentPath,
+    url             : this.currentUrl,
     digests         : this.digests,
-    digestTimeTotal : this.digestTimeTotal,
+    totalDigest     : this.totalDigest,
     eventName       : this.currentEvent.type,
     htmlElement     : this.getPath(this.currentEvent.target)
   };
@@ -708,6 +711,7 @@ var Metrics = function($provide) {
 
         if (duration > routeStat.maxDigest) {
           routeStat.maxDigest = duration;
+          routeStat.maxDigestId = digestId;
         }
 
         routeStat.totalDigest += duration;
@@ -777,8 +781,10 @@ Metrics.prototype.getCurrentRouteStat = function() {
   if (! this.routeStats[currentPath]) {
     this.routeStats[currentPath] = {
       path        : currentPath,
+      url         : this.route.getCurrentUrl(),
       digests     : [],
       maxDigest   : 0,
+      maxDigestId : '',
       totalDigest : 0
     };
   }
@@ -796,10 +802,10 @@ Metrics.prototype.flushCollectedMetrics = function() {
   }
 
   var data = {
-    guid: this.getGuid(),
-    digests: [],
-    routes: [],
-    responsivness: this.rsMetrics.flush()
+    guid    : this.getGuid(),
+    digests : [],
+    routes  : [],
+    rs      : this.rsMetrics.flush()
   };
 
   Object.keys(this.digests).forEach(function(key) {

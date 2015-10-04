@@ -14,7 +14,7 @@ var RS = function(route, events) {
 };
 
 RS.prototype.records         = null;
-RS.prototype.cutoffDelay     = 100;
+RS.prototype.cutoffDelay     = 1000;
 RS.prototype.events          = ['click', 'keydown', 'submit', 'mousein'];
 RS.prototype.settled         = true;
 RS.prototype.currentTimeout  = 0;
@@ -23,7 +23,7 @@ RS.prototype.currentPath     = '';
 RS.prototype.currentUrl      = '',
 RS.prototype.eventTimestamp  = 0;
 RS.prototype.digests         = [];
-RS.prototype.digestTimeTotal = 0;
+RS.prototype.totalDigest     = 0;
 
 RS.prototype.attachEventListeners = function() {
   var rs = this;
@@ -51,7 +51,7 @@ RS.prototype.handleEvent = function(e) {
   this.settled         = false;
   this.eventTimestamp  = Date.now();
   this.digests         = [];
-  this.digestTimeTotal = 0;
+  this.totalDigest     = 0;
   this.currentPath     = this.route.getCurrentPath();
   this.currentUrl      = this.route.getCurrentUrl();
 
@@ -79,7 +79,7 @@ RS.prototype.addDigestTime = function(duration, id) {
     this.digests.push(id);
   }
 
-  this.digestTimeTotal += duration;
+  this.totalDigest += duration;
   this.scheduleSettle();
 };
 
@@ -87,7 +87,7 @@ RS.prototype.settle = function() {
   this.settled = true;
 
   // We do not need to track events which did not incur digest time
-  if (this.digestTimeTotal === 0) {
+  if (this.totalDigest === 0) {
     return;
   }
 
@@ -95,7 +95,7 @@ RS.prototype.settle = function() {
     path            : this.currentPath,
     url             : this.currentUrl,
     digests         : this.digests,
-    digestTimeTotal : this.digestTimeTotal,
+    totalDigest     : this.totalDigest,
     eventName       : this.currentEvent.type,
     htmlElement     : this.getPath(this.currentEvent.target)
   };
