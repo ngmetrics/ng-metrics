@@ -672,6 +672,7 @@ var Metrics = function($provide) {
   this.orig = {};
   this.digests = {};
   this.routeStats = {};
+  this.finalFlushed = false;
 
   this.decorateMap = {
     '$rootScope': {
@@ -796,7 +797,7 @@ Metrics.prototype.getEndpointUrl = function() {
   return 'http://' + this.metricsServer + '/data/log?appId=' + this.appId + '&__c=' + Date.now();
 };
 
-Metrics.prototype.flushCollectedMetrics = function() {
+Metrics.prototype.flushCollectedMetrics = function(sync) {
   if (Object.keys(this.digests).length === 0) {
     return;
   }
@@ -823,7 +824,7 @@ Metrics.prototype.flushCollectedMetrics = function() {
   var dataStr = JSON.stringify(data);
   var xhr = this.getXhr();
 
-  xhr.open('POST', this.getEndpointUrl(), true);
+  xhr.open('POST', this.getEndpointUrl(), !sync);
   xhr.setRequestHeader('Content-type', 'application/json');
   xhr.send(dataStr);
 };
@@ -839,6 +840,13 @@ Metrics.prototype.getXhr = function() {
 Metrics.prototype.init = function(/*options*/) {
 };
 
+Metrics.prototype.finalFlush = function() {
+  if (! this.finalFlushed) {
+    this.finalFlushed = true;
+    this.flushCollectedMetrics();
+  }
+};
+
 Metrics.prototype.enable = function() {
   if (this.appId == null) {
     console.warn('ngMetrics requires appId to be set before enabling');
@@ -848,6 +856,10 @@ Metrics.prototype.enable = function() {
   this.flushInterval = setInterval(this.flushCollectedMetrics.bind(this), 60000);
   this.rsMetrics.attachEventListeners();
   this.enabled = true;
+
+  this.finalFlushed = false;
+  angular.element(window).on('beforeunload', this.finalFlush);
+  angular.element(window).on('unload', this.finalFlush);
 };
 
 Metrics.prototype.disable = function() {
@@ -858,6 +870,9 @@ Metrics.prototype.disable = function() {
 
   this.rsMetrics.detachEventListeners();
   this.enabled = false;
+
+  angular.element(window).off('beforeunload', this.finalFlush);
+  angular.element(window).off('unload', this.finalFlush);
 };
 
 Metrics.prototype.getGuid = function() {
@@ -891,6 +906,9 @@ Metrics.prototype.$get = [
     // metrics stuff
     this.route = new Route(this.$injector);
     this.rsMetrics = new RS(this.route);
+
+    // some init stuff
+    this.finalFlush = this.finalFlush.bind(this);
 
     return this;
   }
