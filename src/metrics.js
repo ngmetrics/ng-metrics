@@ -1,6 +1,6 @@
 /* eslint no-console:0 */
 
-var Metrics = function($provide) {
+var Metrics = function($provide, directivesQueue) {
   var metrics = this;
   window.m = this;
 
@@ -8,6 +8,7 @@ var Metrics = function($provide) {
   this.digests = {};
   this.routeStats = {};
   this.finalFlushed = false;
+  this.directivesMetrics = new this.Directive(directivesQueue);
 
   this.decorateMap = {
     '$rootScope': {
@@ -129,7 +130,7 @@ Metrics.prototype.getCurrentRouteStat = function() {
 };
 
 Metrics.prototype.getEndpointUrl = function() {
-  return 'http://' + this.metricsServer + '/data/log?appId=' + this.appId + '&__c=' + Date.now();
+  return 'http://' + this.metricsServer + '/api/data/log?key=' + this.appId + '&__c=' + Date.now();
 };
 
 Metrics.prototype.flushCollectedMetrics = function(sync) {
@@ -138,10 +139,11 @@ Metrics.prototype.flushCollectedMetrics = function(sync) {
   }
 
   var data = {
-    guid    : this.getGuid(),
-    digests : [],
-    routes  : [],
-    rs      : this.rsMetrics.flush()
+    guid    : this.getGuid(),                // unique visitor id
+    digests : [],                            // digests stats
+    routes  : [],                            // routes stats
+    rs      : this.rsMetrics.flush(),        // responsiveness metrics
+    dt      : this.directivesMetrics.flush() // directive metrics
   };
 
   Object.keys(this.digests).forEach(function(key) {
@@ -190,6 +192,7 @@ Metrics.prototype.enable = function() {
 
   this.flushInterval = setInterval(this.flushCollectedMetrics.bind(this), 60000);
   this.rsMetrics.attachEventListeners();
+  this.directivesMetrics.enable();
   this.enabled = true;
 
   this.finalFlushed = false;
@@ -204,6 +207,7 @@ Metrics.prototype.disable = function() {
   }
 
   this.rsMetrics.detachEventListeners();
+  this.directivesMetrics.disable();
   this.enabled = false;
 
   angular.element(window).off('beforeunload', this.finalFlush);
@@ -252,5 +256,6 @@ Metrics.prototype.$get = [
 Metrics.prototype.docCookies = docCookies;
 Metrics.prototype.Digest = Digest;
 Metrics.prototype.MD5 = MD5;
+Metrics.prototype.Directive = Directive;
 
 // vim: shiftwidth=2

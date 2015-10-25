@@ -490,6 +490,112 @@ Route.prototype.detectMethod = function() {
 
 // vim: shiftwidth=2
 
+// Directive metrics
+var Directive = function(directivesQueue) {
+  this.directivesQueue = directivesQueue;
+
+  this.directivesQueue.forEach(function(args) {
+    this.decorateDirective(args);
+  }.bind(this));
+
+  this.directivesQueue.push = this.decorateDirective.bind(this);
+  this.currentStats = [];
+};
+
+Directive.prototype.enabled = false;
+
+Directive.prototype.enable = function() {
+  this.enabled = true;
+};
+
+Directive.prototype.disable = function() {
+  this.enabled = false;
+};
+
+Directive.prototype.decorateDirective = function(args) {
+  var that = this;
+  var mod = args.module, dirName = args.dirName;
+
+  mod.config(['$provide', function($provide) {
+    $provide.decorator(dirName + 'Directive', ['$delegate', function($delegate) {
+      // patch compile results dynamically as well
+      if ($delegate[0] && $delegate[0].compile) {
+        var origCompile = $delegate[0].compile;
+
+        $delegate[0].compile = function() {
+          var compileResult = origCompile.apply($delegate[0], arguments);
+
+          if (typeof compileResult === 'function') {
+            var obj = {
+              link: compileResult
+            };
+            that.patchFunction(obj, 'link', dirName);
+            compileResult = obj.link;
+          }
+          else {
+            that.patchFunction(compileResult, 'link', dirName);
+            that.patchFunction(compileResult, 'pre', dirName);
+            that.patchFunction(compileResult, 'post', dirName);
+          }
+
+          return compileResult;
+        };
+      }
+
+      // Patch compile and link functions
+      that.patchFunction($delegate[0], 'compile', dirName);
+      that.patchFunction($delegate[0], 'link', dirName);
+
+      return $delegate;
+    }]);
+  }]);
+};
+
+Directive.prototype.currentStats = [];
+
+Directive.prototype.flush = function() {
+  var current = this.currentStats;
+  this.currentStats = [];
+  return current;
+};
+
+Directive.prototype.addStat = function(dirName, funcName, el, dur) {
+  this.currentStats.push({
+    dn : dirName,          // directive name
+    fn : funcName,         // function name
+    el : Util.getPath(el), // element path
+    du : dur               // duration
+  });
+};
+
+Directive.prototype.patchFunction = function(obj, funcName, dirName) {
+  var that = this;
+
+  if (obj[funcName]) {
+    var origFunc = obj[funcName];
+
+    obj[funcName] = function($scope, el) {
+      if (! that.enabled) {
+        return origFunc.apply(obj, arguments);
+      }
+
+      // If patching 'compile' function, `el` is first parameter
+      if (funcName === 'compile') {
+        el = $scope;
+        $scope = null;
+      }
+
+      var start = Util.perf();
+      var result = origFunc.apply(obj, arguments);
+      var dur = Util.perf() - start;
+
+      that.addStat(dirName, funcName, el, dur);
+
+      return result;
+    };
+  }
+};
+
 // Responsiveness metrics tracker
 
 var RS = function(route, events) {
@@ -589,7 +695,7 @@ RS.prototype.settle = function() {
     digests         : this.digests,
     totalDigest     : this.totalDigest,
     eventName       : this.currentEvent.type,
-    htmlElement     : this.getPath(this.currentEvent.target)
+    htmlElement     : Util.getPath(this.currentEvent.target)
   };
 
   this.records.push(record);
@@ -603,7 +709,13 @@ RS.prototype.flush = function() {
   return flushedRecords;
 };
 
-RS.prototype.previousElementSibling = function(element) {
+// vim: shiftwidth=2
+
+/* eslint no-unused-vars:0 */
+
+var Util = {};
+
+Util.previousElementSibling = function(element) {
   if (element.previousElementSibling !== 'undefined') {
     return element.previousElementSibling;
   }
@@ -621,7 +733,11 @@ RS.prototype.previousElementSibling = function(element) {
   }
 };
 
-RS.prototype.getPath = function(element) {
+Util.getPath = function(element) {
+  if (element && element.length) {
+    element = element[0];
+  }
+
   if (! (element instanceof HTMLElement)) {
     return false;
   }
@@ -643,7 +759,7 @@ RS.prototype.getPath = function(element) {
 
       while (sibling !== null && sibling.nodeType === Node.ELEMENT_NODE) {
         siblingSelectors.unshift(sibling.nodeName);
-        sibling = this.previousElementSibling(sibling);
+        sibling = Util.previousElementSibling(sibling);
       }
 
       // :first-child does not apply to HTML
@@ -661,11 +777,16 @@ RS.prototype.getPath = function(element) {
   return path.join(' > ');
 };
 
-// vim: shiftwidth=2
+if (performance && performance.now) {
+  Util.perf = function() { return performance.now(); };
+}
+else {
+  Util.perf = function() { return Date.now(); };
+}
 
 /* eslint no-console:0 */
 
-var Metrics = function($provide) {
+var Metrics = function($provide, directivesQueue) {
   var metrics = this;
   window.m = this;
 
@@ -673,6 +794,7 @@ var Metrics = function($provide) {
   this.digests = {};
   this.routeStats = {};
   this.finalFlushed = false;
+  this.directivesMetrics = new this.Directive(directivesQueue);
 
   this.decorateMap = {
     '$rootScope': {
@@ -794,7 +916,7 @@ Metrics.prototype.getCurrentRouteStat = function() {
 };
 
 Metrics.prototype.getEndpointUrl = function() {
-  return 'http://' + this.metricsServer + '/data/log?appId=' + this.appId + '&__c=' + Date.now();
+  return 'http://' + this.metricsServer + '/api/data/log?key=' + this.appId + '&__c=' + Date.now();
 };
 
 Metrics.prototype.flushCollectedMetrics = function(sync) {
@@ -803,10 +925,11 @@ Metrics.prototype.flushCollectedMetrics = function(sync) {
   }
 
   var data = {
-    guid    : this.getGuid(),
-    digests : [],
-    routes  : [],
-    rs      : this.rsMetrics.flush()
+    guid    : this.getGuid(),                // unique visitor id
+    digests : [],                            // digests stats
+    routes  : [],                            // routes stats
+    rs      : this.rsMetrics.flush(),        // responsiveness metrics
+    dt      : this.directivesMetrics.flush() // directive metrics
   };
 
   Object.keys(this.digests).forEach(function(key) {
@@ -855,6 +978,7 @@ Metrics.prototype.enable = function() {
 
   this.flushInterval = setInterval(this.flushCollectedMetrics.bind(this), 60000);
   this.rsMetrics.attachEventListeners();
+  this.directivesMetrics.enable();
   this.enabled = true;
 
   this.finalFlushed = false;
@@ -869,6 +993,7 @@ Metrics.prototype.disable = function() {
   }
 
   this.rsMetrics.detachEventListeners();
+  this.directivesMetrics.disable();
   this.enabled = false;
 
   angular.element(window).off('beforeunload', this.finalFlush);
@@ -917,13 +1042,52 @@ Metrics.prototype.$get = [
 Metrics.prototype.docCookies = docCookies;
 Metrics.prototype.Digest = Digest;
 Metrics.prototype.MD5 = MD5;
+Metrics.prototype.Directive = Directive;
 
 // vim: shiftwidth=2
+
+var processedDirectives = [];
+var directivesQueue = [];
 
 var module = angular.module('ngMetrics', []);
 
 module.provider('ngMetrics', ['$provide', function($provide) {
-  return new Metrics($provide);
+  return new Metrics($provide, directivesQueue);
 }]);
+
+// Patching angular module/directive method to intercept directives
+// creation.
+var origModule = angular.module;
+
+angular.module = function(name, deps) {
+  var mod = origModule.apply(angular, arguments);
+
+  if (! deps) {
+    return mod;
+  }
+
+  var origDirective = mod.directive;
+
+  mod.directive = function(dirName) {
+    var ngdir = origDirective.apply(mod, arguments);
+
+    if (processedDirectives.indexOf(dirName) > -1) {
+      return ngdir;
+    }
+
+    processedDirectives.push(dirName);
+
+    directivesQueue.push({
+      module  : mod,
+      dirName : dirName
+    });
+
+    return ngdir;
+  };
+
+  return mod;
+};
+// End of patching module/directives
+
 // vim: shiftwidth=2
 }(this));

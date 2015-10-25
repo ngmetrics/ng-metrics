@@ -10,7 +10,10 @@ module.exports = function (grunt) {
           './src/cookie.js',
           './src/digest.js',
           './src/route.js',
+          './src/directive.js',
           './src/rs.js',
+          './src/util.js',
+
           './src/metrics.js',
           './src/ngmetrics.js'
         ],

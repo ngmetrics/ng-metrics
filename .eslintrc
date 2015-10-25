@@ -22,12 +22,15 @@
     },
     "globals": {
         "angular"    : {},
-        "Metrics"    : {},
-        "RS"         : {},
-        "docCookies" : {},
         "Digest"     : {},
+        "Directive"  : {},
+        "docCookies" : {},
+        "Metrics"    : {},
+        "perf"       : {},
         "Route"      : {},
-        "MD5"        : {}
+        "RS"         : {},
+        "MD5"        : {},
+        "Util"       : {}
     },
     "extends": "eslint:recommended"
 }
