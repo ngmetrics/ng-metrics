@@ -25,6 +25,19 @@ module.exports = function (grunt) {
       }
     },
 
+    uglify: {
+      options: {
+        mangle: {
+          except: ['angular']
+        }
+      },
+      dist: {
+        files: {
+          'dist/ngmetrics.min.js': ['dist/ngmetrics.js']
+        }
+      }
+    },
+
     watch: {
       src: {
         files: ['src/*.js'],
@@ -39,6 +52,11 @@ module.exports = function (grunt) {
   grunt.registerTask('default', [
     'concat:dist',
     'watch'
+  ]);
+
+  grunt.registerTask('build', [
+    'concat:dist',
+    'uglify'
   ]);
 };
 
